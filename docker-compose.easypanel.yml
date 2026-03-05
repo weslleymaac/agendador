@@ -8,6 +8,7 @@ services:
       PORT: 3000
       REDIS_URL: redis://redis:6379
       APP_TIMEZONE_OFFSET: -3
+      CRON_SECRET: ${CRON_SECRET:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -17,6 +18,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    restart: unless-stopped
+
+  cron:
+    image: alpine:3.19
+    container_name: agendador-cron
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        while true; do
+          curl -fsS -H "x-cron-secret: $$CRON_SECRET" http://app:3000/api/cron-process-jobs || true
+          sleep 60
+        done
+    depends_on:
+      app:
+        condition: service_healthy
     restart: unless-stopped
 
   redis:

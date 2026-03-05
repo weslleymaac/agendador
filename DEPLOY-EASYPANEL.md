@@ -41,6 +41,13 @@ O projeto está pronto para rodar no **EasyPanel**. Resumo do que já existe e o
 - Não é necessário criar Redis manualmente: o compose já inclui o serviço `redis`.
 - Não precisa de `.env` no servidor: as variáveis usadas em produção estão no `docker-compose.easypanel.yml` (e você pode ajustar no painel).
 - O worker do BullMQ roda no mesmo processo da API, então não há serviço extra para agendar.
+- **Cron não é obrigatório:** o worker já processa os jobs no momento exato (o BullMQ dispara quando o delay expira). Se quiser um reforço, o compose pode incluir um serviço `cron` que chama `/api/cron-process-jobs` a cada minuto (veja abaixo).
+
+## Cron opcional (reforço a cada minuto)
+
+O worker sozinho já executa os jobs no horário certo. Se você quiser um **cron a cada minuto** como fallback (por exemplo, para promover jobs atrasados), o `docker-compose.easypanel.yml` pode incluir um serviço `cron` que chama o endpoint `/api/cron-process-jobs`.
+
+Nesse caso, defina a variável **`CRON_SECRET`** (valor secreto qualquer) no compose e no painel. O endpoint só processa a requisição se o header `x-cron-secret` ou o query `secret` bater com `CRON_SECRET`; assim apenas o serviço cron interno consegue chamar o endpoint. Se `CRON_SECRET` não estiver definido, o endpoint continua aberto (comportamento compatível com a Vercel).
 
 ## Resumo
 

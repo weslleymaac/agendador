@@ -33,8 +33,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Cron Vercel: processa jobs agendados cujo horário já passou (rode a cada minuto no Vercel Cron)
+// Cron Vercel / EasyPanel: processa jobs agendados cujo horário já passou.
+// Se CRON_SECRET estiver definido, exige header x-cron-secret ou query secret com o mesmo valor (401 caso contrário).
 app.get('/api/cron-process-jobs', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const provided = req.get('x-cron-secret') || req.query.secret;
+    if (provided !== secret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
   try {
     const processed = await runCronProcessJobs();
     return res.json({ ok: true, processed });
