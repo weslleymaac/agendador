@@ -2,6 +2,9 @@
 
 API REST para agendar disparos de webhook em uma data e hora definidas. Utiliza Node.js, Express, BullMQ e Redis.
 
+> Fora da Vercel (ex.: EasyPanel), o worker do BullMQ roda continuamente junto da API.  
+> Isso elimina a dependência de cron para processar os agendamentos no horário.
+
 ## Pré-requisitos
 
 - **Node.js** 18+
@@ -76,6 +79,52 @@ npm run dev
 A API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
 
 **Interface web:** Abra `http://localhost:3000` no navegador para usar a tela de gestão (listar, filtrar, criar, editar e cancelar agendamentos).
+
+## Deploy no EasyPanel
+
+O projeto já está preparado para EasyPanel com container Docker.
+
+### Opção 1 (recomendada): Docker Compose no EasyPanel
+
+Use o arquivo `docker-compose.easypanel.yml` deste repositório.
+
+Ele sobe:
+- `app` (API + frontend + worker BullMQ em processo contínuo)
+- `redis` (fila/persistência dos jobs)
+
+Variáveis padrão no compose:
+- `PORT=3000`
+- `REDIS_URL=redis://redis:6379`
+- `APP_TIMEZONE_OFFSET=-3`
+
+Se precisar liberar CORS para um domínio específico, adicione também:
+- `CORS_ORIGIN=https://seu-dominio.com`
+
+### Opção 2: App Docker + Redis separado no EasyPanel
+
+Se você preferir criar o Redis como serviço separado no painel:
+
+1. Crie um app Docker apontando para este repositório (`Dockerfile` na raiz).
+2. Configure no app as variáveis:
+   - `PORT=3000`
+   - `REDIS_URL=redis://<host-do-redis>:6379`
+   - `APP_TIMEZONE_OFFSET=-3`
+   - `CORS_ORIGIN` (opcional)
+3. Exponha a porta `3000`.
+
+### Healthcheck no EasyPanel
+
+Use:
+
+```bash
+GET /health
+```
+
+Resposta esperada:
+
+```json
+{"status":"ok"}
+```
 
 ## Endpoints
 
@@ -197,6 +246,6 @@ O projeto está configurado para rodar no Vercel como serverless:
 
 - **API e frontend:** todas as rotas (`/`, `/agendamentos`, `/health`, arquivos estáticos) são tratadas pela mesma função em `api/index.js`.
 - **Fuso horário:** defina **`APP_TIMEZONE_OFFSET=-3`** nas variáveis de ambiente do projeto na Vercel para que a data e a hora do agendamento sejam interpretadas em **Brasília (UTC-3)**. Sem isso, o horário pode ficar incorreto.
-- **Cron (processar agendamentos no horário):** o `vercel.json` inclui um Cron que chama `/api/cron-process-jobs` **a cada minuto**. Assim os webhooks são disparados no horário certo sem precisar rodar o worker em outro lugar.
+- **Cron (processar agendamentos no horário):** o `vercel.json` inclui um Cron que chama `/api/cron-process-jobs` **uma vez por dia** (meia-noite UTC), compatível com o **plano Hobby** da Vercel. Quando roda, processa todos os agendamentos cujo horário já passou. No plano **Hobby** a precisão é limitada (até ±59 min na janela da hora). Para disparar webhooks **no minuto exato**, use o plano **Pro** (cron a cada minuto) ou rode o worker em outro serviço (Railway, Render, etc.) com o mesmo Redis.
 
 Configure no Vercel: `REDIS_URL`, `APP_TIMEZONE_OFFSET=-3`, `CORS_ORIGIN` (se necessário). Após o deploy, acesse a URL do projeto (ex.: `https://seu-projeto.vercel.app`) para a interface e `/agendamentos` para a API.
