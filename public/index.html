@@ -83,6 +83,8 @@
       </div>
       <form id="form-agendamento" class="modal-form">
         <input type="hidden" id="form-id" value="" />
+        <div id="modal-edit-status" class="modal-edit-status" hidden></div>
+        <div id="form-fields-wrap" class="form-fields-wrap">
         <div class="form-row">
           <label class="form-group">
             <span class="form-label">Data</span>
@@ -102,6 +104,7 @@
           <textarea id="form-dados" name="dados" class="form-textarea" rows="4" placeholder='{"mensagem": "exemplo"}'></textarea>
           <span class="form-hint">Objeto JSON enviado no POST do webhook.</span>
         </label>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" id="form-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="form-submit">Salvar</button>

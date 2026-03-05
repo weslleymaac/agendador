@@ -15,6 +15,8 @@
     modalOverlay: document.getElementById('modal-overlay'),
     modalTitle: document.getElementById('modal-title'),
     modalClose: document.getElementById('modal-close'),
+    modalEditStatus: document.getElementById('modal-edit-status'),
+    formFieldsWrap: document.getElementById('form-fields-wrap'),
     form: document.getElementById('form-agendamento'),
     formId: document.getElementById('form-id'),
     formData: document.getElementById('form-data'),
@@ -125,6 +127,8 @@
   function openCreate() {
     el.formId.value = '';
     el.modalTitle.textContent = 'Novo agendamento';
+    if (el.modalEditStatus) { el.modalEditStatus.hidden = true; el.modalEditStatus.textContent = ''; }
+    if (el.formFieldsWrap) el.formFieldsWrap.hidden = false;
     el.form.reset();
     el.formDados.value = '{}';
     el.formData.value = '';
@@ -132,29 +136,64 @@
     el.formWebhook.value = '';
     el.modalOverlay.hidden = false;
     el.modalOverlay.setAttribute('aria-hidden', 'false');
-    el.formData.focus();
+    setTimeout(function () { el.formData.focus(); }, 50);
   }
 
   async function openEdit(id) {
+    if (!id) return;
+    el.modalTitle.textContent = 'Editar agendamento';
+    el.formId.value = '';
+    if (el.modalEditStatus) {
+      el.modalEditStatus.hidden = false;
+      el.modalEditStatus.textContent = 'Carregando…';
+      el.modalEditStatus.style.color = '';
+    }
+    if (el.formFieldsWrap) el.formFieldsWrap.hidden = true;
+    el.modalOverlay.hidden = false;
+    el.modalOverlay.setAttribute('aria-hidden', 'false');
+
     try {
-      const res = await fetch(API + '/' + encodeURIComponent(id));
-      if (!res.ok) throw new Error('Agendamento não encontrado');
-      const item = await res.json();
-      el.formId.value = item.id || '';
-      el.modalTitle.textContent = 'Editar agendamento';
+      const res = await fetch(API + '/' + encodeURIComponent(String(id)));
+      const body = await res.json().catch(function () { return { error: 'Resposta inválida' }; });
+      if (!res.ok) {
+        if (el.modalEditStatus) {
+          el.modalEditStatus.hidden = false;
+          el.modalEditStatus.textContent = body.error || 'Agendamento não encontrado (' + res.status + ')';
+          el.modalEditStatus.style.color = 'var(--danger, #b91c1c)';
+        }
+        if (el.formFieldsWrap) el.formFieldsWrap.hidden = true;
+        return;
+      }
+      const item = body;
+
+      el.formId.value = (item.id || '').toString().trim();
       el.formData.value = (item.data || '').toString().trim().substring(0, 10) || '';
-      var h = (item.hora || '').substring(0, 5);
-      if ((item.hora || '').length >= 8) h = item.hora.substring(0, 8);
+      var h = (item.hora || '').toString().trim();
+      if (h.length > 8) h = h.substring(0, 8);
+      else if (h.length > 5) h = h.substring(0, 5);
       el.formHora.value = h || '';
-      el.formWebhook.value = item.webhookUrl || '';
-      el.formDados.value = typeof item.dados === 'object' && item.dados !== null
-        ? JSON.stringify(item.dados, null, 2)
-        : '{}';
-      el.modalOverlay.hidden = false;
-      el.modalOverlay.setAttribute('aria-hidden', 'false');
-      el.formData.focus();
+      el.formWebhook.value = (item.webhookUrl || '').toString().trim();
+      try {
+        el.formDados.value = (item.dados != null && typeof item.dados === 'object')
+          ? JSON.stringify(item.dados, null, 2)
+          : '{}';
+      } catch (_) {
+        el.formDados.value = '{}';
+      }
+
+      if (el.modalEditStatus) {
+        el.modalEditStatus.hidden = true;
+        el.modalEditStatus.textContent = '';
+      }
+      if (el.formFieldsWrap) el.formFieldsWrap.hidden = false;
+      setTimeout(function () { el.formData.focus(); }, 50);
     } catch (err) {
-      alert(err.message || 'Erro ao carregar agendamento.');
+      if (el.modalEditStatus) {
+        el.modalEditStatus.hidden = false;
+        el.modalEditStatus.textContent = err.message || 'Erro de rede ao carregar agendamento.';
+        el.modalEditStatus.style.color = 'var(--danger, #b91c1c)';
+      }
+      if (el.formFieldsWrap) el.formFieldsWrap.hidden = true;
     }
   }
 

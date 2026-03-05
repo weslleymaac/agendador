@@ -347,6 +347,14 @@ body {
 .modal-form {
   padding: 1.5rem;
 }
+.modal-edit-status {
+  padding: 0.75rem 0;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+}
+.modal-edit-status:not([hidden]) {
+  display: block;
+}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
