@@ -85,6 +85,7 @@
     const tr = document.createElement('tr');
     const canEdit = item.status === 'Agendado';
     const canCancel = item.status === 'Agendado';
+    const rowId = item.id != null ? String(item.id) : (item._id != null ? String(item._id) : '');
     tr.innerHTML =
       '<td>' + formatData(item.data) + '</td>' +
       '<td>' + formatHora(item.hora) + '</td>' +
@@ -92,8 +93,8 @@
       '<td><span class="badge ' + getStatusBadgeClass(item.status) + '">' + (item.status || '—') + '</span></td>' +
       '<td class="dados-cell" title="' + (typeof item.dados === 'object' ? JSON.stringify(item.dados) : '') + '">' + dadosPreview(item.dados) + '</td>' +
       '<td class="td-actions">' +
-        (canEdit ? '<button type="button" class="btn btn-secondary btn-sm btn-edit" data-id="' + item.id + '"><i class="bi bi-pencil"></i> Editar</button>' : '') +
-        (canCancel ? '<button type="button" class="btn btn-danger btn-sm btn-cancel" data-id="' + item.id + '"><i class="bi bi-x-circle"></i> Cancelar</button>' : '') +
+        (canEdit && rowId ? '<button type="button" class="btn btn-secondary btn-sm btn-edit" data-id="' + rowId.replace(/"/g, '&quot;') + '"><i class="bi bi-pencil"></i> Editar</button>' : '') +
+        (canCancel && rowId ? '<button type="button" class="btn btn-danger btn-sm btn-cancel" data-id="' + rowId.replace(/"/g, '&quot;') + '"><i class="bi bi-x-circle"></i> Cancelar</button>' : '') +
         (!canEdit && !canCancel ? '—' : '') +
       '</td>';
     return tr;
@@ -113,12 +114,6 @@
       items.forEach(function (item) {
         el.tableBody.appendChild(renderRow(item));
       });
-      el.tableBody.querySelectorAll('.btn-edit').forEach(function (btn) {
-        btn.addEventListener('click', function () { openEdit(btn.dataset.id); });
-      });
-      el.tableBody.querySelectorAll('.btn-cancel').forEach(function (btn) {
-        btn.addEventListener('click', function () { cancelar(btn.dataset.id); });
-      });
     } catch (err) {
       setListState(false, err.message || 'Falha ao conectar na API.', false, 0);
     }
@@ -135,22 +130,25 @@
     el.formHora.value = '';
     el.formWebhook.value = '';
     el.modalOverlay.hidden = false;
+    el.modalOverlay.removeAttribute('hidden');
     el.modalOverlay.setAttribute('aria-hidden', 'false');
     setTimeout(function () { el.formData.focus(); }, 50);
   }
 
   async function openEdit(id) {
-    if (!id) return;
+    id = id != null ? String(id).trim() : '';
     el.modalTitle.textContent = 'Editar agendamento';
     el.formId.value = '';
     if (el.modalEditStatus) {
       el.modalEditStatus.hidden = false;
-      el.modalEditStatus.textContent = 'Carregando…';
-      el.modalEditStatus.style.color = '';
+      el.modalEditStatus.textContent = id ? 'Carregando…' : 'ID do agendamento não disponível. Atualize a lista e tente novamente.';
+      el.modalEditStatus.style.color = id ? '' : 'var(--danger, #b91c1c)';
     }
     if (el.formFieldsWrap) el.formFieldsWrap.hidden = true;
     el.modalOverlay.hidden = false;
+    el.modalOverlay.removeAttribute('hidden');
     el.modalOverlay.setAttribute('aria-hidden', 'false');
+    if (!id) return;
 
     try {
       const res = await fetch(API + '/' + encodeURIComponent(String(id)));
@@ -199,6 +197,7 @@
 
   function closeModal() {
     el.modalOverlay.hidden = true;
+    el.modalOverlay.setAttribute('hidden', '');
     el.modalOverlay.setAttribute('aria-hidden', 'true');
   }
 
@@ -266,6 +265,19 @@
   }
 
   el.btnNovo.addEventListener('click', openCreate);
+  el.tableBody.addEventListener('click', function (e) {
+    var editBtn = e.target.closest('.btn-edit');
+    var cancelBtn = e.target.closest('.btn-cancel');
+    if (editBtn) {
+      e.preventDefault();
+      var id = editBtn.getAttribute('data-id');
+      if (id) openEdit(id);
+    } else if (cancelBtn) {
+      e.preventDefault();
+      var id = cancelBtn.getAttribute('data-id');
+      if (id) cancelar(id);
+    }
+  });
   el.filterStatus.addEventListener('change', loadList);
   el.filterData.addEventListener('change', loadList);
   (function () {
