@@ -18,6 +18,11 @@ app.use(
   })
 );
 
+// Health primeiro, sem rate limit, para o healthcheck do Docker/EasyPanel passar e evitar SIGTERM
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 app.use(
   rateLimit({
     windowMs: 1 * 60 * 1000,
@@ -28,10 +33,6 @@ app.use(
 );
 
 app.use('/agendamentos', agendamentosRouter);
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
 
 // Cron Vercel / EasyPanel: processa jobs agendados cujo horário já passou.
 // Se CRON_SECRET estiver definido, exige header x-cron-secret ou query secret com o mesmo valor (401 caso contrário).

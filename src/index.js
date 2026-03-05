@@ -14,6 +14,12 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('unhandledRejection:', reason, promise);
 });
 
-app.listen(port, host, () => {
+const server = app.listen(port, host, () => {
   console.log(`API rodando em http://${host}:${port}`);
+});
+
+// Encerramento limpo ao receber SIGTERM (Docker/EasyPanel); evita "npm error signal SIGTERM"
+process.on('SIGTERM', () => {
+  console.log('SIGTERM recebido, encerrando...');
+  server.close(() => process.exit(0));
 });
