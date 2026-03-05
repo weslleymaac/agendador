@@ -40,20 +40,26 @@ export { processWebhook };
 
 // Worker só inicia fora do Vercel (serverless não mantém processo em background)
 if (!process.env.VERCEL) {
-  const worker = new Worker(
-    QUEUE_NAME,
-    async (job) => processWebhook(job),
-    {
-      connection,
-      concurrency: 10,
-    }
-  );
+  let worker;
+  try {
+    worker = new Worker(
+      QUEUE_NAME,
+      async (job) => processWebhook(job),
+      {
+        connection,
+        concurrency: 10,
+      }
+    );
 
-  worker.on('failed', (job, err) => {
-    console.error(`Job ${job?.id} falhou:`, err.message);
-  });
+    worker.on('failed', (job, err) => {
+      console.error(`Job ${job?.id} falhou:`, err.message);
+    });
 
-  worker.on('error', (err) => {
-    console.error('Worker error:', err);
-  });
+    worker.on('error', (err) => {
+      console.error('Worker error (Redis/conexão):', err.message);
+    });
+  } catch (err) {
+    console.error('Falha ao iniciar worker BullMQ:', err.message);
+    // Processo continua; a API sobe e o cron/endpoint pode processar jobs
+  }
 }

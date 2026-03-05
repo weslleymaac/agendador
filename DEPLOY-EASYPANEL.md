@@ -68,19 +68,34 @@ Depois do deploy, acesse `https://seu-dominio.com` para a interface e `https://s
 
 Se a API sobe nos logs (`API rodando em http://0.0.0.0:3000`) mas ao abrir a página aparece **"Service is not reachable"**:
 
-1. **Confirme que é o app certo**  
-   Este projeto é o **agendador** (API de agendamento com BullMQ), **não é n8n**. Se você criou o app como "n8n" ou a partir de um template n8n, crie um novo app usando o **Docker Compose** com o arquivo `docker-compose.easypanel.yml` deste repositório.
+1. **Vincule o domínio ao serviço correto**  
+   No EasyPanel, em **Domains** (ou configuração de domínio do app), confira que o domínio (ex.: `n8n-agenda.pkrrrs.easypanel.host`) está vinculado ao serviço **`app`** — e **não** ao cron, ao redis ou a outro template (ex.: n8n). O tráfego HTTP deve ir para o serviço **app**.
 
-2. **Porta do container**  
-   No EasyPanel, no serviço **app**, verifique:
-   - **Container Port** ou **Application Port** = **3000**  
-   O proxy do painel precisa encaminhar o tráfego para a porta 3000 do container.
+2. **Porta 3000**  
+   Para o serviço **app**, a porta deve ser **3000**. No painel, onde você configura o domínio ou o proxy, defina **porta do container / application port = 3000**.
 
-3. **Domínio apontando para o serviço correto**  
-   O domínio (ex.: `n8n-agendador.pkrrrs.easypanel.host`) deve estar associado ao serviço **app** do seu Compose (agendador), não a outro serviço ou template.
+3. **Aguarde o status Healthy**  
+   Após o deploy, o serviço **app** pode levar até ~1 minuto para ficar **Healthy** (o healthcheck espera até 45s para o app subir). Enquanto estiver "Unhealthy", o EasyPanel pode não encaminhar tráfego. Espere o ícone verde/Healthy antes de acessar a URL.
 
-4. **Aguardar o healthcheck**  
-   Após o deploy, espere o serviço ficar **Healthy** (cerca de 20–30 segundos). Só então o painel costuma liberar o tráfego. Se continuar "Unhealthy", veja os logs do container para erros na aplicação ou no Redis.
+4. **Confira os logs do container `app`**  
+   Se continuar inacessível, abra os **logs** do container **agendador-app** no EasyPanel. Erros comuns:
+   - **Redis connection refused** — o Redis ainda não estava pronto; o compose já usa `depends_on` com healthcheck, então um redeploy costuma resolver.
+   - **EADDRINUSE** ou erro de porta — improvável com a configuração atual.
+   - Qualquer stack trace — envie o trecho para depuração.
 
-5. **Redeploy após as alterações**  
-   Se você alterou o `Dockerfile` ou o `docker-compose.easypanel.yml` (por exemplo, healthcheck com `curl`), faça um **rebuild e redeploy** no EasyPanel para aplicar as mudanças.
+5. **Este projeto é o agendador, não n8n**  
+   Se você criou o app a partir de um template "n8n", crie um **novo** app do tipo **Docker Compose** e use apenas o arquivo `docker-compose.easypanel.yml` deste repositório (agendador). O domínio deve apontar para esse compose e para o serviço **app**.
+
+6. **Redeploy após alterações**  
+   Se alterou o `Dockerfile` ou o `docker-compose.easypanel.yml`, faça **rebuild e redeploy** no EasyPanel para aplicar as mudanças.
+
+---
+
+## Erro 502 (Bad Gateway)
+
+Se o navegador ou a API retornam **502**:
+
+1. **Veja os logs do container `app`** no EasyPanel. O projeto registra `uncaughtException` e `unhandledRejection` no console; a mensagem que aparecer ali costuma ser a causa (ex.: Redis inacessível, arquivo não encontrado, erro de código).
+2. **Redis:** confira se o serviço **redis** está **Healthy**. Se o app subir antes do Redis, as primeiras requisições podem falhar; um **Redeploy** do Compose costuma resolver.
+3. **Timeout do proxy:** em alguns painéis o proxy encerra a requisição após poucos segundos. Se a primeira resposta do app demorar (ex.: muitos jobs na listagem), pode dar 502. Se os logs do app mostrarem resposta 200 mas o browser 502, aumente o timeout no EasyPanel se houver opção.
+4. Depois de corrigir a causa, faça **Redeploy** do Compose.

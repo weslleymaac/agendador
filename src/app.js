@@ -53,15 +53,21 @@ app.get('/api/cron-process-jobs', async (req, res) => {
 });
 
 // Raiz: serve o frontend (antes do static para prioridade no Vercel/serverless)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+app.get('/', (req, res, next) => {
+  const p = path.join(__dirname, '..', 'public', 'index.html');
+  res.sendFile(p, (err) => {
+    if (err) {
+      if (!res.headersSent) res.status(500).json({ error: 'Erro ao servir frontend' });
+      next(err);
+    }
+  });
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ error: 'Erro interno do servidor' });
+  if (!res.headersSent) res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
 export default app;

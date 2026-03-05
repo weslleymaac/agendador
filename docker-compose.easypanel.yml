@@ -2,6 +2,7 @@ services:
   app:
     build: .
     container_name: agendador-app
+    # No EasyPanel: atribua o domínio a este serviço (app) e defina a porta como 3000
     ports:
       - "3000:3000"
     environment:
@@ -14,10 +15,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 45s
     restart: unless-stopped
 
   cron:
