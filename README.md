@@ -1,0 +1,146 @@
+# API de Agendamento (BullMQ)
+
+API REST para agendar disparos de webhook em uma data e hora definidas. Utiliza Node.js, Express, BullMQ e Redis.
+
+## Pré-requisitos
+
+- **Node.js** 18+
+- **Redis** em execução (local ou via `REDIS_URL`)
+
+### Subir o Redis com Docker
+
+```bash
+docker run -d -p 6379:6379 --name redis redis:alpine
+```
+
+## Instalação
+
+```bash
+npm install
+cp .env.example .env
+# Ajuste .env se necessário (REDIS_URL, PORT)
+```
+
+## Execução
+
+```bash
+npm start
+# ou em desenvolvimento com reload
+npm run dev
+```
+
+A API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
+
+## Endpoints
+
+Base URL: `/agendamentos`
+
+| Método   | Rota            | Descrição                          |
+|----------|-----------------|------------------------------------|
+| POST     | /agendamentos   | Cria um agendamento                |
+| GET      | /agendamentos   | Lista agendamentos                 |
+| GET      | /agendamentos/:id | Retorna um agendamento por id    |
+| PUT      | /agendamentos/:id | Atualiza um agendamento          |
+| DELETE   | /agendamentos/:id | Remove um agendamento           |
+
+### Criar agendamento (POST /agendamentos)
+
+**Body (JSON):**
+
+- `data` (string): data no formato `YYYY-MM-DD`
+- `hora` (string): hora no formato `HH:mm` ou `HH:mm:ss`
+- `webhookUrl` (string): URL do webhook (apenas HTTP/HTTPS; URLs internas como localhost são bloqueadas por segurança)
+- `dados` (objeto, opcional): payload que será enviado no POST ao disparar o webhook
+
+**Exemplo de request:**
+
+```bash
+curl -X POST http://localhost:3000/agendamentos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": "2025-12-31",
+    "hora": "14:30:00",
+    "webhookUrl": "https://webhook.site/seu-uuid",
+    "dados": { "mensagem": "Agendado com sucesso" }
+  }'
+```
+
+**Exemplo de response (201):**
+
+```json
+{
+  "id": "uuid-do-agendamento",
+  "data": "2025-12-31",
+  "hora": "14:30:00",
+  "webhookUrl": "https://webhook.site/seu-uuid",
+  "dados": { "mensagem": "Agendado com sucesso" },
+  "agendadoPara": "2025-12-31T14:30:00.000Z",
+  "status": "Agendado"
+}
+```
+
+### Listar agendamentos (GET /agendamentos)
+
+**Status em português:** `Agendado`, `Executado`, `Falhou`, `Cancelado`.
+
+- **Sem filtro:** retorna todos os agendamentos (todos os status).
+- **Query params:**
+  - `status`: filtra por um status (`Agendado`, `Executado`, `Cancelado`, `Falhou`).
+  - `data`: filtra por data no formato `YYYY-MM-DD`.
+  - `id`: filtra por id (contém o texto informado).
+
+Exemplos:
+
+```bash
+curl http://localhost:3000/agendamentos
+curl "http://localhost:3000/agendamentos?status=Executado"
+curl "http://localhost:3000/agendamentos?status=Agendado&data=2026-03-10"
+curl "http://localhost:3000/agendamentos?id=abc-123"
+```
+
+### Buscar por id (GET /agendamentos/:id)
+
+```bash
+curl http://localhost:3000/agendamentos/SEU_JOB_ID
+```
+
+### Atualizar (PUT /agendamentos/:id)
+
+Body igual ao do POST. O agendamento antigo é removido e um novo é criado com o mesmo `id`.
+
+```bash
+curl -X PUT http://localhost:3000/agendamentos/SEU_JOB_ID \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": "2026-01-15",
+    "hora": "10:00",
+    "webhookUrl": "https://webhook.site/outro-uuid",
+    "dados": { "atualizado": true }
+  }'
+```
+
+### Remover (DELETE /agendamentos/:id)
+
+Cancela o agendamento (ele passa a aparecer com status `Cancelado` na listagem). Retorna 204 sem body.
+
+```bash
+curl -X DELETE http://localhost:3000/agendamentos/SEU_JOB_ID
+```
+
+## Segurança
+
+- **Rate limit:** 100 requisições por minuto por IP.
+- **CORS:** configurável via `CORS_ORIGIN` no `.env`.
+- **Webhook URL:** apenas HTTP/HTTPS; bloqueio de localhost e IPs privados (mitigação SSRF).
+- **Validação:** corpo das requisições validado (data, hora, URL, dados). Data/hora devem ser futuras.
+
+## Health check
+
+```bash
+curl http://localhost:3000/health
+# {"status":"ok"}
+```
+
+## Variáveis de ambiente
+
+Consulte `.env.example`. Principais: `PORT`, `REDIS_URL` (ou `REDIS_HOST` e `REDIS_PORT`), `APP_TIMEZONE_OFFSET` (fuso para data/hora, padrão -3 = Brasília), `CORS_ORIGIN`.
