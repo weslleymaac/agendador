@@ -4,6 +4,7 @@ import './queue.js'; // inicia o worker (apenas fora do Vercel)
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
-app.listen(port, () => {
-  console.log(`API rodando em http://localhost:${port}`);
+const host = process.env.HOST || '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`API rodando em http://${host}:${port}`);
 });
