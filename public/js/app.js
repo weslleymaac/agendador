@@ -3,7 +3,6 @@
 
   const el = {
     btnNovo: document.getElementById('btn-novo'),
-    btnFiltrar: document.getElementById('btn-filtrar'),
     filterStatus: document.getElementById('filter-status'),
     filterData: document.getElementById('filter-data'),
     filterId: document.getElementById('filter-id'),
@@ -43,7 +42,11 @@
 
   function formatData(str) {
     if (!str) return '—';
-    return str.substring(0, 10);
+    const s = String(str).trim().substring(0, 10);
+    if (s.length < 10) return s;
+    const [y, m, d] = s.split('-');
+    if (!y || !m || !d) return s;
+    return (d.padStart(2, '0') + '/' + m.padStart(2, '0') + '/' + y);
   }
 
   function dadosPreview(dados) {
@@ -87,8 +90,8 @@
       '<td><span class="badge ' + getStatusBadgeClass(item.status) + '">' + (item.status || '—') + '</span></td>' +
       '<td class="dados-cell" title="' + (typeof item.dados === 'object' ? JSON.stringify(item.dados) : '') + '">' + dadosPreview(item.dados) + '</td>' +
       '<td class="td-actions">' +
-        (canEdit ? '<button type="button" class="btn btn-secondary btn-sm btn-edit" data-id="' + item.id + '">Editar</button>' : '') +
-        (canCancel ? '<button type="button" class="btn btn-danger btn-sm btn-cancel" data-id="' + item.id + '">Cancelar</button>' : '') +
+        (canEdit ? '<button type="button" class="btn btn-secondary btn-sm btn-edit" data-id="' + item.id + '"><i class="bi bi-pencil"></i> Editar</button>' : '') +
+        (canCancel ? '<button type="button" class="btn btn-danger btn-sm btn-cancel" data-id="' + item.id + '"><i class="bi bi-x-circle"></i> Cancelar</button>' : '') +
         (!canEdit && !canCancel ? '—' : '') +
       '</td>';
     return tr;
@@ -139,7 +142,7 @@
       const item = await res.json();
       el.formId.value = item.id || '';
       el.modalTitle.textContent = 'Editar agendamento';
-      el.formData.value = formatData(item.data) || '';
+      el.formData.value = (item.data || '').toString().trim().substring(0, 10) || '';
       var h = (item.hora || '').substring(0, 5);
       if ((item.hora || '').length >= 8) h = item.hora.substring(0, 8);
       el.formHora.value = h || '';
@@ -224,7 +227,15 @@
   }
 
   el.btnNovo.addEventListener('click', openCreate);
-  el.btnFiltrar.addEventListener('click', loadList);
+  el.filterStatus.addEventListener('change', loadList);
+  el.filterData.addEventListener('change', loadList);
+  (function () {
+    var debounceTimer;
+    el.filterId.addEventListener('input', function () {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(loadList, 350);
+    });
+  })();
   el.modalClose.addEventListener('click', closeModal);
   el.formCancel.addEventListener('click', closeModal);
   el.form.addEventListener('submit', submitForm);

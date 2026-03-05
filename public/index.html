@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
@@ -16,7 +18,7 @@
         <h1 class="logo">Agendador</h1>
         <p class="tagline">Disparo de webhooks agendados</p>
         <button type="button" class="btn btn-primary" id="btn-novo" aria-label="Novo agendamento">
-          <span class="btn-icon">+</span>
+          <i class="bi bi-plus-lg"></i>
           Novo agendamento
         </button>
       </div>
@@ -27,7 +29,7 @@
         <div class="filters-inner">
           <label class="filter-group">
             <span class="filter-label">Status</span>
-            <select id="filter-status" class="filter-select">
+            <select id="filter-status" class="filter-select form-select">
               <option value="">Todos</option>
               <option value="Agendado">Agendado</option>
               <option value="Executado">Executado</option>
@@ -37,13 +39,12 @@
           </label>
           <label class="filter-group">
             <span class="filter-label">Data</span>
-            <input type="date" id="filter-data" class="filter-input" />
+            <input type="date" id="filter-data" class="filter-input form-control" />
           </label>
           <label class="filter-group">
             <span class="filter-label">ID</span>
-            <input type="text" id="filter-id" class="filter-input" placeholder="Buscar por ID" />
+            <input type="text" id="filter-id" class="filter-input form-control" placeholder="Buscar por ID" />
           </label>
-          <button type="button" class="btn btn-secondary" id="btn-filtrar">Filtrar</button>
         </div>
       </section>
 
@@ -78,7 +79,7 @@
     <div class="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
       <div class="modal-header">
         <h2 id="modal-title">Novo agendamento</h2>
-        <button type="button" class="modal-close" id="modal-close" aria-label="Fechar">&times;</button>
+        <button type="button" class="modal-close btn btn-link text-secondary p-0" id="modal-close" aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
       </div>
       <form id="form-agendamento" class="modal-form">
         <input type="hidden" id="form-id" value="" />
