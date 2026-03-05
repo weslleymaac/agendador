@@ -31,6 +31,8 @@ npm run dev
 
 A API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
 
+**Interface web:** Abra `http://localhost:3000` no navegador para usar a tela de gestão (listar, filtrar, criar, editar e cancelar agendamentos).
+
 ## Endpoints
 
 Base URL: `/agendamentos`
