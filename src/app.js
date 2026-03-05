@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import agendamentosRouter from './routes/agendamentos.js';
+import { runCronProcessJobs } from './lib/cronProcessJobs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,22 @@ app.use('/agendamentos', agendamentosRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Cron Vercel: processa jobs agendados cujo horário já passou (rode a cada minuto no Vercel Cron)
+const CRON_SECRET = process.env.CRON_SECRET;
+app.get('/api/cron-process-jobs', async (req, res) => {
+  const auth = req.headers.authorization;
+  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const processed = await runCronProcessJobs();
+    return res.json({ ok: true, processed });
+  } catch (err) {
+    console.error('Cron process jobs error:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar jobs' });
+  }
 });
 
 // Raiz: serve o frontend (antes do static para prioridade no Vercel/serverless)

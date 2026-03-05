@@ -4,6 +4,7 @@ import { getRedisConnectionOptions } from './lib/redis.js';
 const QUEUE_NAME = 'agendamentos';
 const connection = getRedisConnectionOptions();
 
+export { connection, QUEUE_NAME };
 export const agendamentosQueue = new Queue(QUEUE_NAME, {
   connection,
   defaultJobOptions: {
@@ -34,6 +35,8 @@ async function processWebhook(job) {
     throw err;
   }
 }
+
+export { processWebhook };
 
 // Worker só inicia fora do Vercel (serverless não mantém processo em background)
 if (!process.env.VERCEL) {

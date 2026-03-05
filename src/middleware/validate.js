@@ -68,8 +68,11 @@ function parseDateTime(data, hora) {
   // Normaliza hora para HH:mm:ss
   const parts = hora.split(':').map((p) => p.padStart(2, '0'));
   const timeStr = parts.length === 2 ? `${parts[0]}:${parts[1]}:00` : `${parts[0]}:${parts[1]}:${(parts[2] || '0').padStart(2, '0')}`;
-  // Offset do fuso em horas (padrão -3 = Brasília)
-  const offsetHours = parseInt(process.env.APP_TIMEZONE_OFFSET ?? '-3', 10);
+  // Offset do fuso em horas: -12 a +14. Padrão -3 = Brasília (UTC-3). No Vercel defina APP_TIMEZONE_OFFSET=-3.
+  let offsetHours = parseInt(process.env.APP_TIMEZONE_OFFSET ?? '-3', 10);
+  if (Number.isNaN(offsetHours) || offsetHours < -12 || offsetHours > 14) {
+    offsetHours = -3;
+  }
   const sign = offsetHours >= 0 ? '+' : '-';
   const offsetStr = `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:00`;
   const iso = `${data}T${timeStr}.000${offsetStr}`;
