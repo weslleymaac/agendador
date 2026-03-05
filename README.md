@@ -7,7 +7,50 @@ API REST para agendar disparos de webhook em uma data e hora definidas. Utiliza 
 - **Node.js** 18+
 - **Redis** em execução (local ou via `REDIS_URL`)
 
-### Subir o Redis com Docker
+## Redis
+
+### Local (Docker)
+
+O projeto inclui `docker-compose.yml` para subir o Redis com um comando:
+
+```bash
+docker compose up -d redis
+```
+
+Ou use os scripts npm:
+
+```bash
+npm run redis:up    # sobe o Redis em segundo plano
+npm run redis:logs  # acompanha os logs (Ctrl+C para sair)
+npm run redis:down  # para e remove o container
+```
+
+O Redis fica em `localhost:6379`. No `.env` use:
+
+```env
+REDIS_URL=redis://localhost:6379
+```
+
+### Produção (Vercel) — Upstash Redis
+
+Para o deploy na Vercel, use um Redis gerenciado compatível com serverless. A opção recomendada é o **Upstash Redis** (plano gratuito, integração simples):
+
+1. Acesse [upstash.com](https://upstash.com) e crie uma conta (ou faça login).
+2. No dashboard, clique em **Create Database**.
+3. Escolha **Regional** (ou Global se quiser baixa latência em várias regiões), selecione a região mais próxima (ex.: `sa-east-1` para São Paulo) e clique em **Create**.
+4. Na página do banco, em **REST API** ou **Connect**, copie a **URL** no formato:
+   - `rediss://default:SUA_SENHA@seu-endpoint.upstash.io:6379`  
+   Ou use a **connection string** que já vem pronta.
+5. No projeto na **Vercel** → **Settings** → **Environment Variables**, crie:
+   - **Name:** `REDIS_URL`
+   - **Value:** a URL copiada do Upstash (ex.: `rediss://default:xxx@xxx.upstash.io:6379`)
+   - Marque os ambientes (Production, Preview, Development) e salve.
+
+O BullMQ e o ioredis funcionam com essa URL. Faça um novo deploy para aplicar a variável.
+
+**Observação:** se o Upstash mostrar apenas uma URL no formato REST (`https://...`), use a aba **Redis Connect** ou **TCP** para obter a URL no formato `rediss://...` — o ioredis usa conexão TCP.
+
+### Subir o Redis com Docker (alternativa ao docker-compose)
 
 ```bash
 docker run -d -p 6379:6379 --name redis redis:alpine
@@ -146,3 +189,12 @@ curl http://localhost:3000/health
 ## Variáveis de ambiente
 
 Consulte `.env.example`. Principais: `PORT`, `REDIS_URL` (ou `REDIS_HOST` e `REDIS_PORT`), `APP_TIMEZONE_OFFSET` (fuso para data/hora, padrão -3 = Brasília), `CORS_ORIGIN`.
+
+## Deploy no Vercel
+
+O projeto está configurado para rodar no Vercel como serverless:
+
+- **API e frontend:** todas as rotas (`/`, `/agendamentos`, `/health`, arquivos estáticos) são tratadas pela mesma função em `api/index.js`.
+- **Worker BullMQ:** no Vercel o worker **não é iniciado** (ambiente serverless não mantém processo em background). Para processar os jobs (disparar webhooks no horário), rode o worker em outro lugar apontando para o mesmo Redis (Railway, Render, VPS ou local com `npm start`).
+
+Configure no Vercel as variáveis de ambiente (`REDIS_URL`, `CORS_ORIGIN`). Após o deploy, acesse a URL do projeto (ex.: `https://seu-projeto.vercel.app`) para a interface e `/agendamentos` para a API.

@@ -35,19 +35,22 @@ async function processWebhook(job) {
   }
 }
 
-export const worker = new Worker(
-  QUEUE_NAME,
-  async (job) => processWebhook(job),
-  {
-    connection,
-    concurrency: 10,
-  }
-);
+// Worker só inicia fora do Vercel (serverless não mantém processo em background)
+if (!process.env.VERCEL) {
+  const worker = new Worker(
+    QUEUE_NAME,
+    async (job) => processWebhook(job),
+    {
+      connection,
+      concurrency: 10,
+    }
+  );
 
-worker.on('failed', (job, err) => {
-  console.error(`Job ${job?.id} falhou:`, err.message);
-});
+  worker.on('failed', (job, err) => {
+    console.error(`Job ${job?.id} falhou:`, err.message);
+  });
 
-worker.on('error', (err) => {
-  console.error('Worker error:', err);
-});
+  worker.on('error', (err) => {
+    console.error('Worker error:', err);
+  });
+}
