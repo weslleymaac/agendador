@@ -45,7 +45,6 @@ Para o deploy na Vercel, use um Redis gerenciado compatível com serverless. A o
    - **Name:** `REDIS_URL`
    - **Value:** a URL copiada do Upstash (ex.: `rediss://default:xxx@xxx.upstash.io:6379`)
    - **Name:** `APP_TIMEZONE_OFFSET` — **Value:** `-3` (para que data/hora sejam em Brasília, UTC-3)
-   - **Name:** `CRON_SECRET` — **Value:** um segredo forte (ex.: `openssl rand -hex 32`) para autorizar o Cron que processa os agendamentos
    - Marque os ambientes (Production, Preview, Development) e salve.
 
 O BullMQ e o ioredis funcionam com essa URL. Faça um novo deploy para aplicar a variável.
@@ -190,7 +189,7 @@ curl http://localhost:3000/health
 
 ## Variáveis de ambiente
 
-Consulte `.env.example`. Principais: `PORT`, `REDIS_URL` (ou `REDIS_HOST` e `REDIS_PORT`), `APP_TIMEZONE_OFFSET` (fuso para data/hora, padrão -3 = Brasília), `CRON_SECRET` (para o Cron no Vercel), `CORS_ORIGIN`.
+Consulte `.env.example`. Principais: `PORT`, `REDIS_URL` (ou `REDIS_HOST` e `REDIS_PORT`), `APP_TIMEZONE_OFFSET` (fuso para data/hora, padrão -3 = Brasília), `CORS_ORIGIN`.
 
 ## Deploy no Vercel
 
@@ -198,6 +197,6 @@ O projeto está configurado para rodar no Vercel como serverless:
 
 - **API e frontend:** todas as rotas (`/`, `/agendamentos`, `/health`, arquivos estáticos) são tratadas pela mesma função em `api/index.js`.
 - **Fuso horário:** defina **`APP_TIMEZONE_OFFSET=-3`** nas variáveis de ambiente do projeto na Vercel para que a data e a hora do agendamento sejam interpretadas em **Brasília (UTC-3)**. Sem isso, o horário pode ficar incorreto.
-- **Cron (processar agendamentos no horário):** o `vercel.json` inclui um Cron que chama `/api/cron-process-jobs` **a cada minuto**. Assim os webhooks são disparados no horário certo sem precisar rodar o worker em outro lugar. É obrigatório definir **`CRON_SECRET`** nas variáveis de ambiente (ex.: `openssl rand -hex 32`); a Vercel envia esse valor no header `Authorization: Bearer <CRON_SECRET>` ao invocar o Cron.
+- **Cron (processar agendamentos no horário):** o `vercel.json` inclui um Cron que chama `/api/cron-process-jobs` **a cada minuto**. Assim os webhooks são disparados no horário certo sem precisar rodar o worker em outro lugar.
 
-Configure no Vercel: `REDIS_URL`, `APP_TIMEZONE_OFFSET=-3`, `CRON_SECRET`, `CORS_ORIGIN` (se necessário). Após o deploy, acesse a URL do projeto (ex.: `https://seu-projeto.vercel.app`) para a interface e `/agendamentos` para a API.
+Configure no Vercel: `REDIS_URL`, `APP_TIMEZONE_OFFSET=-3`, `CORS_ORIGIN` (se necessário). Após o deploy, acesse a URL do projeto (ex.: `https://seu-projeto.vercel.app`) para a interface e `/agendamentos` para a API.

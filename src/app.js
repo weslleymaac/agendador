@@ -34,12 +34,7 @@ app.get('/health', (req, res) => {
 });
 
 // Cron Vercel: processa jobs agendados cujo horário já passou (rode a cada minuto no Vercel Cron)
-const CRON_SECRET = process.env.CRON_SECRET;
 app.get('/api/cron-process-jobs', async (req, res) => {
-  const auth = req.headers.authorization;
-  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
   try {
     const processed = await runCronProcessJobs();
     return res.json({ ok: true, processed });
