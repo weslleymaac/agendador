@@ -1,24 +1,38 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const ok = login(username.trim(), password);
-    if (!ok) {
-      setError("Credenciais inválidas. Use Admin / admin.");
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error || "Credenciais inválidas. Verifique LOGIN_USERNAME e LOGIN_PASSWORD no .env da raiz.");
+        return;
+      }
+      localStorage.setItem("agendador_user", username.trim());
+      window.location.assign("/");
+    } catch {
+      setError("Não foi possível conectar ao servidor. Tente de novo.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/");
   }
 
   return (
@@ -44,6 +58,7 @@ export default function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Usuário"
           autoComplete="username"
+          disabled={loading}
           style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}
         />
         <input
@@ -52,21 +67,24 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Senha"
           autoComplete="current-password"
+          disabled={loading}
           style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}
         />
         {error ? <p style={{ color: "var(--error)", fontSize: 13 }}>{error}</p> : null}
         <button
           type="submit"
+          disabled={loading}
           style={{
             background: "var(--primary)",
             color: "#fff",
             border: 0,
             borderRadius: 10,
             padding: "10px 12px",
-            cursor: "pointer",
+            cursor: loading ? "wait" : "pointer",
+            opacity: loading ? 0.85 : 1,
           }}
         >
-          Entrar
+          {loading ? "Entrando…" : "Entrar"}
         </button>
       </form>
     </main>

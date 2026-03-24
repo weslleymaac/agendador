@@ -222,8 +222,7 @@ export function Dashboard() {
           </button>
           <button
             onClick={() => {
-              logout();
-              window.location.href = "/login";
+              void logout();
             }}
             style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}
           >
