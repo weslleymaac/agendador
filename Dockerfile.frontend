@@ -1,3 +1,6 @@
+# Opcional: apenas se você publicar o front em um serviço/container separado da API.
+# Para um único container (API + painel), use o Dockerfile na raiz do repositório.
+
 FROM node:20-alpine AS builder
 
 RUN apk add --no-cache libc6-compat

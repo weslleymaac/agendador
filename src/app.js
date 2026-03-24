@@ -76,6 +76,19 @@ if (nextDevProxy) {
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.send(renderDocsHtml(req));
   });
+
+  // Quem aponta o domínio só para a API vê "Cannot GET /login" — explica o serviço correto (Next `web`).
+  app.get('/login', (req, res) => {
+    res.status(404).type('html').send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Login — domínio na API</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;line-height:1.5">
+<h1>Domínio apontando para a API</h1>
+<p>A rota <code>/login</code> é do <strong>frontend (serviço <code>web</code></strong> — Next.js). Este endereço está respondendo pela <strong>API (serviço <code>app</code>)</strong>, que não tem tela de login.</p>
+<p><strong>No EasyPanel:</strong> associe o domínio público ao serviço <code>web</code>, porta do container <strong>3000</strong> (não ao <code>app</code>). Depois acesse de novo <code>/login</code>.</p>
+<p>Documentação em <code>/docs</code> nesta mesma API continua funcionando.</p>
+</body></html>`);
+  });
 }
 
 app.use((err, req, res, next) => {

@@ -1,18 +1,17 @@
+# Um único container: API + Next (ver Dockerfile e docker-entrypoint.sh).
 services:
   app:
     build: .
     container_name: agendador-app
-    expose:
-      - "3000"
-    # Opcional: exponha a API no host (ex.: segunda URL só para integrações / n8n).
-    # O painel e o tráfego do navegador podem usar só o serviço `web` (mesma origem).
-    # ports:
-    #   - "3002:3000"
+    ports:
+      - "3000:3000"
     environment:
       PORT: 3000
       REDIS_URL: redis://redis:6379
       APP_TIMEZONE_OFFSET: -3
       CRON_SECRET: ${CRON_SECRET:-}
+      LOGIN_USERNAME: ${LOGIN_USERNAME:-Admin}
+      LOGIN_PASSWORD: ${LOGIN_PASSWORD:-admin}
     depends_on:
       redis:
         condition: service_healthy
@@ -21,33 +20,7 @@ services:
       interval: 20s
       timeout: 10s
       retries: 10
-      start_period: 60s
-    restart: unless-stopped
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ""
-        API_INTERNAL_URL: http://app:3000
-    container_name: agendador-web
-    ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-      HOSTNAME: 0.0.0.0
-      LOGIN_USERNAME: ${LOGIN_USERNAME:-Admin}
-      LOGIN_PASSWORD: ${LOGIN_PASSWORD:-admin}
-    depends_on:
-      app:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "--max-time", "5", "http://127.0.0.1:3000/login"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+      start_period: 120s
     restart: unless-stopped
 
   cron:
