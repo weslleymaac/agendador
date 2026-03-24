@@ -51,7 +51,7 @@ export function renderDocsHtml(req) {
         <li><code>GET /agendamentos</code> — lista agendamentos.</li>
         <li><code>GET /agendamentos/:id</code> — busca por id.</li>
         <li><code>PUT /agendamentos/:id</code> — atualiza agendamento.</li>
-        <li><code>DELETE /agendamentos/:id</code> — remove/cancela agendamento.</li>
+        <li><code>DELETE /agendamentos/:id</code> — remove o agendamento por completo (não apenas marca como cancelado).</li>
         <li><code>GET /api/cron-process-jobs</code> — processamento via cron.</li>
       </ul>
     </section>

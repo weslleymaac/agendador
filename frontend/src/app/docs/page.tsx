@@ -36,7 +36,7 @@ export default function DocsPage() {
             <code>PUT /agendamentos/:id</code> - atualiza agendamento.
           </li>
           <li>
-            <code>DELETE /agendamentos/:id</code> - remove/cancela agendamento.
+            <code>DELETE /agendamentos/:id</code> - remove o agendamento (fila Redis/BullMQ e registro em cancelados, se houver).
           </li>
           <li>
             <code>GET /api/cron-process-jobs</code> - processamento via cron.

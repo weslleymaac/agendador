@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { agendamentosQueue } from '../queue.js';
 import { parseAndValidateScheduledAt } from '../middleware/validate.js';
-import { statusParaPortugues, addCancelled, listCancelled, removeCancelled } from '../lib/cancelledStore.js';
+import { statusParaPortugues, listCancelled, removeCancelled } from '../lib/cancelledStore.js';
 
 function normalizeTag(tag) {
   if (tag == null || tag === '') return undefined;
@@ -224,17 +224,6 @@ export async function remove(req, res) {
       }
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
-    const d = job.data || {};
-    const agendadoPara = job.timestamp ? new Date(job.timestamp).toISOString() : `${d.data || ''}T${d.hora || ''}`;
-    await addCancelled(id, {
-      id,
-      data: d.data,
-      hora: d.hora,
-      webhookUrl: d.webhookUrl,
-      tag: d.tag != null && String(d.tag).trim() !== '' ? String(d.tag).trim() : null,
-      dados: d.dados,
-      agendadoPara,
-    });
     await agendamentosQueue.remove(id);
     return res.status(204).send();
   } catch (err) {

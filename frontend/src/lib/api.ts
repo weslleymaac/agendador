@@ -8,10 +8,25 @@ function getApiBase(): string {
   return b;
 }
 
+function mapNetworkError(err: unknown, attemptedUrl: string): Error {
+  const msg = err instanceof Error ? err.message : String(err);
+  const isNetwork =
+    err instanceof TypeError &&
+    (msg === "Failed to fetch" || msg.includes("fetch") || msg.includes("NetworkError"));
+  if (isNetwork) {
+    return new Error(
+      `Sem conexão com a API (${attemptedUrl}). Suba o backend nessa origem ou use na raiz do projeto: npm run dev e abra http://localhost:3000 (API + proxy do Next). Se usar só o Next na 3001, rode também npm run dev:api e mantenha o Redis ativo.`
+    );
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const base = getApiBase();
   const url = path.startsWith("http") ? path : `${base}${path}`;
-  const response = await fetch(url, {
+  let response: Response;
+  try {
+    response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -19,6 +34,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
     cache: "no-store",
   });
+  } catch (e) {
+    throw mapNetworkError(e, url);
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
