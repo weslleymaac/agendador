@@ -1,6 +1,6 @@
 # API de Agendamento (BullMQ)
 
-API REST para agendar disparos de webhook em uma data e hora definidas. Utiliza Node.js, Express, BullMQ e Redis.
+API REST para agendar disparos de webhook em uma data e hora definidas. Utiliza Node.js, Express, BullMQ e Redis, com frontend moderno separado em Next.js.
 
 > Fora da Vercel (ex.: EasyPanel), o worker do BullMQ roda continuamente junto da API.  
 > Isso elimina a dependência de cron para processar os agendamentos no horário.
@@ -78,7 +78,30 @@ npm run dev
 
 A API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
 
-**Interface web:** Abra `http://localhost:3000` no navegador para usar a tela de gestão (listar, filtrar, criar, editar e cancelar agendamentos).
+## Frontend Next.js
+
+O frontend foi migrado para `frontend/` e roda separado da API.
+
+### Rodar API + frontend juntos (recomendado em dev)
+
+```bash
+npm run dev:all
+```
+
+- API Express: `http://localhost:3000`
+- Frontend Next.js: `http://localhost:3001` (ou próxima porta livre)
+
+### Rodar somente frontend
+
+```bash
+npm run dev:front
+```
+
+Crie `frontend/.env.local` com:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+```
 
 ## Deploy
 
@@ -250,8 +273,9 @@ Consulte `.env.example`. Principais: `PORT`, `REDIS_URL` (ou `REDIS_HOST` e `RED
 
 O projeto também pode rodar na Vercel como serverless:
 
-- **API e frontend:** todas as rotas (`/`, `/agendamentos`, `/health`, arquivos estáticos) são tratadas pela mesma função em `api/index.js`.
+- **API:** rotas em `api/index.js` e backend em `src/`.
+- **Frontend:** app Next.js separado em `frontend/` (deploy independente recomendado).
 - **Fuso horário:** defina **`APP_TIMEZONE_OFFSET=-3`** nas variáveis de ambiente do projeto na Vercel para que a data e a hora do agendamento sejam interpretadas em **Brasília (UTC-3)**. Sem isso, o horário pode ficar incorreto.
 - **Cron (processar agendamentos no horário):** o `vercel.json` inclui um Cron que chama `/api/cron-process-jobs` **a cada 1 minuto** (`* * * * *`). Isso exige **plano Pro** na Vercel; no plano **Hobby** o cron só pode rodar **uma vez por dia**. Se você estiver no Hobby e o deploy falhar por causa do cron, altere no `vercel.json` o `schedule` para `"0 0 * * *"` (meia-noite UTC). Quando o cron roda, processa todos os agendamentos cujo horário já passou.
 
-Configure no Vercel: `REDIS_URL`, `APP_TIMEZONE_OFFSET=-3`, `CORS_ORIGIN` (se necessário). Após o deploy, acesse a URL do projeto (ex.: `https://seu-projeto.vercel.app`) para a interface e `/agendamentos` para a API.
+Configure no Vercel: `REDIS_URL`, `APP_TIMEZONE_OFFSET=-3`, `CORS_ORIGIN` (se necessário). Para frontend separado, configure também `NEXT_PUBLIC_API_BASE_URL` apontando para a URL pública da API.

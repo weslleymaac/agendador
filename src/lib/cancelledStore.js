@@ -52,3 +52,14 @@ export async function listCancelled() {
     }
   });
 }
+
+/**
+ * Remove um agendamento da coleção de cancelados.
+ * @param {string} id
+ * @returns {Promise<boolean>} true se removeu
+ */
+export async function removeCancelled(id) {
+  const redis = getClient();
+  const removed = await redis.hdel(KEY, id);
+  return removed > 0;
+}

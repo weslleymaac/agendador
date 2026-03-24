@@ -7,6 +7,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "dev:api": "node --watch src/index.js",
+    "dev:front": "npm run dev --prefix frontend -- -p 3001",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:front\"",
+    "build:front": "npm run build --prefix frontend",
+    "start:front": "npm run start --prefix frontend -- -p 3001",
     "redis:up": "docker compose up -d redis",
     "redis:down": "docker compose down",
     "redis:logs": "docker compose logs -f redis"
@@ -23,5 +28,8 @@
     "express-validator": "^7.3.1",
     "ioredis": "^5.10.0",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

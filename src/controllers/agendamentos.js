@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { agendamentosQueue } from '../queue.js';
 import { parseAndValidateScheduledAt } from '../middleware/validate.js';
-import { statusParaPortugues, addCancelled, listCancelled } from '../lib/cancelledStore.js';
+import { statusParaPortugues, addCancelled, listCancelled, removeCancelled } from '../lib/cancelledStore.js';
 
 async function getJobState(job) {
   try {
@@ -188,6 +188,10 @@ export async function remove(req, res) {
   try {
     const job = await agendamentosQueue.getJob(id);
     if (!job) {
+      const removedFromCancelled = await removeCancelled(id);
+      if (removedFromCancelled) {
+        return res.status(204).send();
+      }
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
     const d = job.data || {};

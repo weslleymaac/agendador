@@ -1,12 +1,8 @@
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import agendamentosRouter from './routes/agendamentos.js';
 import { runCronProcessJobs } from './lib/cronProcessJobs.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
@@ -53,18 +49,21 @@ app.get('/api/cron-process-jobs', async (req, res) => {
   }
 });
 
-// Raiz: serve o frontend (antes do static para prioridade no Vercel/serverless)
-app.get('/', (req, res, next) => {
-  const p = path.join(__dirname, '..', 'public', 'index.html');
-  res.sendFile(p, (err) => {
-    if (err) {
-      if (!res.headersSent) res.status(500).json({ error: 'Erro ao servir frontend' });
-      next(err);
-    }
+app.get('/', (req, res) => {
+  res.json({
+    service: 'agendador-api',
+    docs: '/docs',
+    endpoints: ['/health', '/agendamentos', '/api/cron-process-jobs'],
   });
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/docs', (req, res) => {
+  res.json({
+    message: 'Use o frontend Next.js para documentação completa.',
+    frontendDocsPath: '/docs (app Next.js)',
+    apiBase: '/agendamentos',
+  });
+});
 
 app.use((err, req, res, next) => {
   console.error(err);
