@@ -1,9 +1,5 @@
 import 'dotenv/config';
-import app, { nextDevProxy } from './app.js';
-import './queue.js'; // inicia o worker (apenas fora do Vercel)
-
-const port = parseInt(process.env.PORT || '3000', 10);
-const host = process.env.HOST || '0.0.0.0';
+import { runStartupDiagnostics } from './lib/startupDiagnostics.js';
 
 // Log de erros não tratados para aparecer nos logs do EasyPanel (evita 502 sem diagnóstico)
 process.on('uncaughtException', (err) => {
@@ -13,6 +9,14 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('unhandledRejection:', reason, promise);
 });
+
+await runStartupDiagnostics();
+
+const { default: app, nextDevProxy } = await import('./app.js');
+await import('./queue.js'); // inicia o worker (apenas fora do Vercel)
+
+const port = parseInt(process.env.PORT || '3000', 10);
+const host = process.env.HOST || '0.0.0.0';
 
 const server = app.listen(port, host, () => {
   const hint = process.env.PROXY_NEXT_DEV ? ' (Next via proxy → use esta URL no navegador)' : '';
