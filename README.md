@@ -175,6 +175,7 @@ Base URL: `/agendamentos`
 - `hora` (string): hora no formato `HH:mm` ou `HH:mm:ss`
 - `webhookUrl` (string): URL do webhook (apenas HTTP/HTTPS; URLs internas como localhost são bloqueadas por segurança)
 - `dados` (objeto, opcional): payload que será enviado no POST ao disparar o webhook
+- `tag` (string, opcional): etiqueta para agrupar agendamentos (máx. 200 caracteres)
 
 **Exemplo de request:**
 
@@ -185,6 +186,7 @@ curl -X POST http://localhost:3000/agendamentos \
     "data": "2025-12-31",
     "hora": "14:30:00",
     "webhookUrl": "https://webhook.site/seu-uuid",
+    "tag": "grupo-marketing",
     "dados": { "mensagem": "Agendado com sucesso" }
   }'
 ```
@@ -197,6 +199,7 @@ curl -X POST http://localhost:3000/agendamentos \
   "data": "2025-12-31",
   "hora": "14:30:00",
   "webhookUrl": "https://webhook.site/seu-uuid",
+  "tag": "grupo-marketing",
   "dados": { "mensagem": "Agendado com sucesso" },
   "agendadoPara": "2025-12-31T14:30:00.000Z",
   "status": "Agendado"
@@ -209,7 +212,7 @@ curl -X POST http://localhost:3000/agendamentos \
 
 - **Sem filtro:** retorna todos os agendamentos (todos os status).
 - **Query params:**
-  - `status`: filtra por um status (`Agendado`, `Executado`, `Cancelado`, `Falhou`).
+  - `status`: filtra por um ou mais status (`Agendado`, `Executado`, `Cancelado`, `Falhou`). Repita o parâmetro (`status=A&status=B`) ou use vírgulas (`status=A,B`).
   - `data`: filtra por data no formato `YYYY-MM-DD`.
   - `id`: filtra por id (contém o texto informado).
 
@@ -218,6 +221,8 @@ Exemplos:
 ```bash
 curl http://localhost:3000/agendamentos
 curl "http://localhost:3000/agendamentos?status=Executado"
+curl "http://localhost:3000/agendamentos?status=Agendado&status=Executado"
+curl "http://localhost:3000/agendamentos?status=Agendado,Executado"
 curl "http://localhost:3000/agendamentos?status=Agendado&data=2026-03-10"
 curl "http://localhost:3000/agendamentos?id=abc-123"
 ```
@@ -239,6 +244,7 @@ curl -X PUT http://localhost:3000/agendamentos/SEU_JOB_ID \
     "data": "2026-01-15",
     "hora": "10:00",
     "webhookUrl": "https://webhook.site/outro-uuid",
+    "tag": "grupo-marketing",
     "dados": { "atualizado": true }
   }'
 ```

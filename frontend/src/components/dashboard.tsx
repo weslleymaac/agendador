@@ -4,12 +4,14 @@ import { FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useState 
 import Link from "next/link";
 import { createAgendamento, deleteAgendamento, listAgendamentos, updateAgendamento } from "@/lib/api";
 import { logout } from "@/lib/auth";
-import { Agendamento } from "@/lib/types";
+import { Agendamento, AgendamentoStatus } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 
+const ALL_STATUSES: AgendamentoStatus[] = ["Agendado", "Executado", "Falhou", "Cancelado"];
+
 type DatePreset = "all" | "today" | "yesterday" | "7days" | "custom";
-type SortKey = "id" | "data" | "hora" | "webhookUrl" | "status";
+type SortKey = "id" | "data" | "hora" | "webhookUrl" | "tag" | "status";
 type SortDir = "asc" | "desc";
 type ModalMode = "new" | "view" | "edit" | null;
 
@@ -57,6 +59,7 @@ const DEFAULT_WIDTHS: Record<SortKey | "dados" | "acoes", number> = {
   data: 120,
   hora: 90,
   webhookUrl: 300,
+  tag: 140,
   status: 120,
   dados: 340,
   acoes: 220,
@@ -70,12 +73,15 @@ export function Dashboard() {
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [statusSelection, setStatusSelection] = useState<AgendamentoStatus[]>(() => [...ALL_STATUSES]);
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [activeItem, setActiveItem] = useState<Agendamento | null>(null);
-  const [formData, setFormData] = useState({ data: "", hora: "", webhookUrl: "", dados: "{}" });
+  const [formData, setFormData] = useState<
+    { data: string; hora: string; webhookUrl: string; tag: string; dados: string }
+  >({ data: "", hora: "", webhookUrl: "", tag: "", dados: "{}" });
   const [saving, setSaving] = useState(false);
   const [colWidths, setColWidths] = useState(DEFAULT_WIDTHS);
 
@@ -101,10 +107,15 @@ export function Dashboard() {
     const q = query.trim().toLowerCase();
     if (q) {
       result = result.filter((item) => {
-        const full = [item.id, item.data, item.hora, item.webhookUrl, item.status, asJson(item.dados)].join(" ").toLowerCase();
+        const full = [item.id, item.data, item.hora, item.webhookUrl, item.tag ?? "", item.status, asJson(item.dados)]
+          .join(" ")
+          .toLowerCase();
         return full.includes(q);
       });
     }
+
+    const statusSelSet = new Set(statusSelection);
+    result = result.filter((item) => statusSelSet.has(item.status));
 
     result = result.filter((item) => inPreset(dateOnly(item.data || item.agendadoPara), datePreset, customStart, customEnd));
 
@@ -116,7 +127,7 @@ export function Dashboard() {
       return 0;
     });
     return result;
-  }, [items, query, datePreset, customStart, customEnd, sortKey, sortDir]);
+  }, [items, query, datePreset, customStart, customEnd, statusSelection, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE));
   const pageItems = useMemo(() => filteredSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredSorted, page]);
@@ -125,9 +136,19 @@ export function Dashboard() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  function toggleStatusFilter(s: AgendamentoStatus) {
+    setStatusSelection((prev) => {
+      if (prev.includes(s)) {
+        const next = prev.filter((x) => x !== s);
+        return next.length === 0 ? [...ALL_STATUSES] : next;
+      }
+      return [...prev, s];
+    });
+  }
+
   function openNew() {
     setActiveItem(null);
-    setFormData({ data: "", hora: "", webhookUrl: "", dados: "{}" });
+    setFormData({ data: "", hora: "", webhookUrl: "", tag: "", dados: "{}" });
     setModalMode("new");
   }
 
@@ -142,6 +163,7 @@ export function Dashboard() {
       data: dateOnly(item.data || item.agendadoPara),
       hora: item.hora || "",
       webhookUrl: item.webhookUrl || "",
+      tag: item.tag ?? "",
       dados: asJson(item.dados),
     });
     setModalMode("edit");
@@ -162,12 +184,14 @@ export function Dashboard() {
     setSaving(true);
     try {
       const parsedDados = JSON.parse(formData.dados || "{}") as Record<string, unknown>;
-      const payload = {
+      const payload: Record<string, unknown> = {
         data: formData.data,
         hora: formData.hora,
         webhookUrl: formData.webhookUrl,
         dados: parsedDados,
       };
+      const tagTrim = formData.tag.trim();
+      if (tagTrim) payload.tag = tagTrim;
       if (modalMode === "new") {
         await createAgendamento(payload);
       } else if (modalMode === "edit" && activeItem) {
@@ -231,7 +255,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 12, display: "grid", gap: 10 }}>
+      <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 12, display: "grid", gap: 12 }}>
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", alignItems: "center" }}>
           <input placeholder="Buscar por todos os campos..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }} />
           <select value={datePreset} onChange={(e) => setDatePreset(e.target.value as DatePreset)} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}>
@@ -246,6 +270,31 @@ export function Dashboard() {
           <button onClick={loadData} style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
             Recarregar
           </button>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "var(--muted)", fontWeight: 600, fontSize: 14 }}>Status:</span>
+          {ALL_STATUSES.map((s) => {
+            const on = statusSelection.includes(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleStatusFilter(s)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  border: `1px solid ${on ? "var(--primary)" : "var(--border)"}`,
+                  background: on ? "var(--primary)" : "#fff",
+                  color: on ? "#fff" : "var(--muted)",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+              >
+                {s}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -262,6 +311,7 @@ export function Dashboard() {
                     ["data", "Data"],
                     ["hora", "Hora"],
                     ["webhookUrl", "Webhook"],
+                    ["tag", "Tag"],
                     ["status", "Status"],
                   ] as [SortKey, string][]
                 ).map(([key, label]) => (
@@ -291,6 +341,7 @@ export function Dashboard() {
                     <td style={{ borderBottom: "1px solid var(--border)", padding: 10 }}>{dateOnly(item.data || item.agendadoPara)}</td>
                     <td style={{ borderBottom: "1px solid var(--border)", padding: 10 }}>{item.hora || "-"}</td>
                     <td style={{ borderBottom: "1px solid var(--border)", padding: 10, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.webhookUrl}</td>
+                    <td style={{ borderBottom: "1px solid var(--border)", padding: 10, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.tag?.trim() || "—"}</td>
                     <td style={{ borderBottom: "1px solid var(--border)", padding: 10 }}>
                       <span style={{ background: badge.bg, color: badge.color, borderRadius: 999, fontSize: 12, padding: "4px 8px", fontWeight: 600 }}>{item.status}</span>
                     </td>
@@ -345,6 +396,13 @@ export function Dashboard() {
                   <input type="time" required value={formData.hora} onChange={(e) => setFormData((v) => ({ ...v, hora: e.target.value }))} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }} />
                 </div>
                 <input required value={formData.webhookUrl} onChange={(e) => setFormData((v) => ({ ...v, webhookUrl: e.target.value }))} placeholder="https://seu-webhook.com/endpoint" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }} />
+                <input
+                  value={formData.tag}
+                  onChange={(e) => setFormData((v) => ({ ...v, tag: e.target.value }))}
+                  placeholder="Tag (opcional, para agrupar)"
+                  maxLength={200}
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}
+                />
                 <textarea rows={10} value={formData.dados} onChange={(e) => setFormData((v) => ({ ...v, dados: e.target.value }))} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontFamily: "var(--font-jetbrains-mono), monospace" }} />
                 <button disabled={saving} type="submit" style={{ border: 0, background: "var(--primary)", color: "#fff", borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
                   {saving ? "Salvando..." : "Salvar"}

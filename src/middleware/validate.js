@@ -39,6 +39,12 @@ export const createAgendamentoRules = [
     .optional()
     .isObject()
     .withMessage('dados deve ser um objeto'),
+  body('tag')
+    .optional({ values: 'null' })
+    .isString()
+    .trim()
+    .isLength({ min: 0, max: 200 })
+    .withMessage('tag deve ser texto com no máximo 200 caracteres'),
 ];
 
 export const updateAgendamentoRules = [
@@ -53,8 +59,22 @@ export const idParamRules = [
 export const listQueryRules = [
   query('status')
     .optional()
-    .isIn(['Agendado', 'Executado', 'Cancelado', 'Falhou'])
-    .withMessage('status inválido. Use: Agendado, Executado, Cancelado ou Falhou'),
+    .custom((value, { req }) => {
+      const raw = req.query.status;
+      if (raw === undefined || raw === null || raw === '') return true;
+      const parts = Array.isArray(raw)
+        ? raw.flatMap((p) => String(p).split(','))
+        : String(raw).split(',');
+      const valid = ['Agendado', 'Executado', 'Cancelado', 'Falhou'];
+      for (const p of parts) {
+        const s = String(p).trim();
+        if (!s) continue;
+        if (!valid.includes(s)) {
+          throw new Error('status inválido. Use: Agendado, Executado, Cancelado ou Falhou');
+        }
+      }
+      return true;
+    }),
   query('data')
     .optional()
     .matches(DATE_REGEX)

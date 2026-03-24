@@ -5,6 +5,8 @@ export type Agendamento = {
   data?: string;
   hora?: string;
   webhookUrl?: string;
+  /** Etiqueta opcional para agrupar agendamentos */
+  tag?: string | null;
   dados?: Record<string, unknown>;
   agendadoPara?: string;
   status: AgendamentoStatus;

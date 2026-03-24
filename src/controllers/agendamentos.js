@@ -3,6 +3,23 @@ import { agendamentosQueue } from '../queue.js';
 import { parseAndValidateScheduledAt } from '../middleware/validate.js';
 import { statusParaPortugues, addCancelled, listCancelled, removeCancelled } from '../lib/cancelledStore.js';
 
+function normalizeTag(tag) {
+  if (tag == null || tag === '') return undefined;
+  const s = String(tag).trim();
+  return s.length ? s : undefined;
+}
+
+function parseStatusesFromQuery(statusQuery) {
+  if (statusQuery === undefined || statusQuery === null || statusQuery === '') return null;
+  const parts = Array.isArray(statusQuery)
+    ? statusQuery.flatMap((p) => String(p).split(','))
+    : String(statusQuery).split(',');
+  const set = new Set(
+    parts.map((p) => String(p).trim()).filter(Boolean)
+  );
+  return set.size ? set : null;
+}
+
 async function getJobState(job) {
   try {
     const state = await job.getState();
@@ -24,6 +41,7 @@ function jobToItem(job, state) {
     data: d.data,
     hora: d.hora,
     webhookUrl: d.webhookUrl,
+    tag: d.tag != null && String(d.tag).trim() !== '' ? String(d.tag).trim() : null,
     dados: d.dados,
     agendadoPara,
     status: statusParaPortugues(state),
@@ -44,7 +62,8 @@ function applyFilters(items, filters) {
 }
 
 export async function create(req, res) {
-  const { data, hora, webhookUrl, dados } = req.body;
+  const { data, hora, webhookUrl, dados, tag: tagBody } = req.body;
+  const tag = normalizeTag(tagBody);
   const parsed = parseAndValidateScheduledAt(data, hora);
   if (parsed.error) {
     return res.status(400).json({ error: parsed.error });
@@ -57,6 +76,7 @@ export async function create(req, res) {
     dados: dados ?? {},
     data,
     hora,
+    ...(tag ? { tag } : {}),
   };
   try {
     const job = await agendamentosQueue.add('webhook', jobData, {
@@ -69,6 +89,7 @@ export async function create(req, res) {
       data,
       hora,
       webhookUrl,
+      tag: tag ?? null,
       dados: jobData.dados,
       agendadoPara: scheduledAt.toISOString(),
       status: statusParaPortugues(state),
@@ -80,32 +101,37 @@ export async function create(req, res) {
 }
 
 export async function list(req, res) {
-  const { status: statusFilter, data: dataFilter, id: idFilter } = req.query;
+  const { data: dataFilter, id: idFilter } = req.query;
   try {
     let items = [];
 
-    const statusNorm = statusFilter ? String(statusFilter).trim() : '';
+    const statusSet = parseStatusesFromQuery(req.query.status);
 
-    if (!statusNorm || statusNorm === 'Agendado') {
+    const wantAgendado = !statusSet || statusSet.has('Agendado');
+    const wantExecutado = !statusSet || statusSet.has('Executado');
+    const wantFalhou = !statusSet || statusSet.has('Falhou');
+    const wantCancelado = !statusSet || statusSet.has('Cancelado');
+
+    if (wantAgendado) {
       const jobs = await agendamentosQueue.getJobs(['waiting', 'delayed', 'active'], 0, 999, true);
       for (const job of jobs) {
         const state = await getJobState(job);
         items.push(jobToItem(job, state));
       }
     }
-    if (!statusNorm || statusNorm === 'Executado') {
+    if (wantExecutado) {
       const jobs = await agendamentosQueue.getJobs(['completed'], 0, 999, true);
       for (const job of jobs) {
         items.push(jobToItem(job, 'completed'));
       }
     }
-    if (!statusNorm || statusNorm === 'Falhou') {
+    if (wantFalhou) {
       const jobs = await agendamentosQueue.getJobs(['failed'], 0, 999, true);
       for (const job of jobs) {
         items.push(jobToItem(job, 'failed'));
       }
     }
-    if (!statusNorm || statusNorm === 'Cancelado') {
+    if (wantCancelado) {
       const cancelled = await listCancelled();
       items = items.concat(cancelled);
     }
@@ -132,6 +158,7 @@ export async function getById(req, res) {
       data: d.data,
       hora: d.hora,
       webhookUrl: d.webhookUrl,
+      tag: d.tag != null && String(d.tag).trim() !== '' ? String(d.tag).trim() : null,
       dados: d.dados,
       agendadoPara: job.timestamp ? new Date(job.timestamp).toISOString() : null,
       status: statusParaPortugues(state),
@@ -144,7 +171,8 @@ export async function getById(req, res) {
 
 export async function update(req, res) {
   const { id } = req.params;
-  const { data, hora, webhookUrl, dados } = req.body;
+  const { data, hora, webhookUrl, dados, tag: tagBody } = req.body;
+  const tag = normalizeTag(tagBody);
   const parsed = parseAndValidateScheduledAt(data, hora);
   if (parsed.error) {
     return res.status(400).json({ error: parsed.error });
@@ -162,6 +190,7 @@ export async function update(req, res) {
       dados: dados ?? {},
       data,
       hora,
+      ...(tag ? { tag } : {}),
     };
     const job = await agendamentosQueue.add('webhook', jobData, {
       jobId: id,
@@ -173,6 +202,7 @@ export async function update(req, res) {
       data,
       hora,
       webhookUrl,
+      tag: tag ?? null,
       dados: jobData.dados,
       agendadoPara: scheduledAt.toISOString(),
       status: statusParaPortugues(state),
@@ -201,6 +231,7 @@ export async function remove(req, res) {
       data: d.data,
       hora: d.hora,
       webhookUrl: d.webhookUrl,
+      tag: d.tag != null && String(d.tag).trim() !== '' ? String(d.tag).trim() : null,
       dados: d.dados,
       agendadoPara,
     });

@@ -52,11 +52,12 @@ export default function DocsPage() {
     "data": "2026-12-31",
     "hora": "14:30",
     "webhookUrl": "https://webhook.site/seu-id",
+    "tag": "grupo-marketing",
     "dados": { "origem": "dashboard" }
   }'`}</pre>
         <p>
           Campos obrigatórios: <code>data</code>, <code>hora</code>, <code>webhookUrl</code>.{" "}
-          <code>dados</code> é opcional e deve ser objeto.
+          <code>dados</code> e <code>tag</code> são opcionais; <code>tag</code> agrupa agendamentos (texto, máx. 200 caracteres).
         </p>
       </section>
 
@@ -64,9 +65,14 @@ export default function DocsPage() {
         <h2>Listagem e filtros</h2>
         <pre style={{ background: "#f8fafc", border: "1px solid var(--border)", borderRadius: 10, padding: 12, overflowX: "auto" }}>{`curl ${apiBase}/agendamentos
 curl "${apiBase}/agendamentos?status=Executado"
+curl "${apiBase}/agendamentos?status=Agendado&status=Executado"
+curl "${apiBase}/agendamentos?status=Agendado,Executado"
 curl "${apiBase}/agendamentos?data=2026-03-24"
 curl "${apiBase}/agendamentos?id=parte-do-id"`}</pre>
-        <p>Status aceitos: Agendado, Executado, Falhou, Cancelado.</p>
+        <p>
+          Filtro <code>status</code>: um ou mais valores (Agendado, Executado, Falhou, Cancelado) — repita o parâmetro ou use lista separada por
+          vírgula.
+        </p>
       </section>
 
       <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 16, display: "grid", gap: 12 }}>
