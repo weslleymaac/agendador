@@ -72,36 +72,44 @@ cp .env.example .env
 
 ```bash
 npm start
-# ou em desenvolvimento com reload
-npm run dev
 ```
 
-A API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
+Em produção a API sobe em `http://localhost:3000` (ou na porta definida em `PORT`).
 
 ## Frontend Next.js
 
-O frontend foi migrado para `frontend/` e roda separado da API.
+O frontend fica em `frontend/`. Em desenvolvimento, **`npm run dev`** sobe o Next em uma porta interna (**3001**) e a **API na `PORT`** (padrão **3000**) com **proxy**: use **somente** `http://localhost:3000` no navegador — painel, `/docs` e `/agendamentos` na mesma origem.
 
-### Rodar API + frontend juntos (recomendado em dev)
+### Desenvolvimento (uma porta no navegador)
 
 ```bash
-npm run dev:all
+npm run dev
+# alias: npm run dev:all
 ```
 
-- API Express: `http://localhost:3000`
-- Frontend Next.js: `http://localhost:3001` (ou próxima porta livre)
+- Abra **apenas** `http://localhost:3000` (API + interface + hot reload do Next).
 
-### Rodar somente frontend
+### API sem proxy (só JSON em `/`, útil para testar curl)
+
+```bash
+npm run dev:api
+```
+
+### Duas portas abertas (comportamento antigo)
+
+```bash
+npm run dev:split
+```
+
+- API: `http://localhost:3000` · Next: `http://localhost:3001`
+
+### Só o Next (precisa da API rodando em outro terminal)
 
 ```bash
 npm run dev:front
 ```
 
-Crie `frontend/.env.local` com:
-
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
-```
+No `.env` da raiz, mantenha `NEXT_PUBLIC_API_BASE_URL` apontando para a API (ex.: `http://localhost:3000`).
 
 ## Deploy
 

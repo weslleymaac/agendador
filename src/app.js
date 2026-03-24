@@ -1,11 +1,12 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import agendamentosRouter from './routes/agendamentos.js';
 import { runCronProcessJobs } from './lib/cronProcessJobs.js';
 
 const app = express();
-app.use(express.json({ limit: '256kb' }));
+const isNextProxy = process.env.PROXY_NEXT_DEV === '1' || process.env.PROXY_NEXT_DEV === 'true';
 
 app.use(
   cors({
@@ -14,21 +15,22 @@ app.use(
   })
 );
 
+/** Em dev com proxy, json() não pode ser global — senão consome o body antes de repassar ao Next. */
+app.use('/agendamentos', express.json({ limit: '256kb' }));
+
 // Health primeiro, sem rate limit, para o healthcheck do Docker/EasyPanel passar e evitar SIGTERM
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-app.use(
-  rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-app.use('/agendamentos', agendamentosRouter);
+app.use('/agendamentos', apiLimiter, agendamentosRouter);
 
 // Cron Vercel / EasyPanel: processa jobs agendados cujo horário já passou.
 // Se CRON_SECRET estiver definido, exige header x-cron-secret ou query secret com o mesmo valor (401 caso contrário).
@@ -49,21 +51,34 @@ app.get('/api/cron-process-jobs', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.json({
-    service: 'agendador-api',
-    docs: '/docs',
-    endpoints: ['/health', '/agendamentos', '/api/cron-process-jobs'],
-  });
-});
+/** Proxy para o Next (dev interno em 3001): uma única porta pública (ex.: 3000). Suporte a WebSocket (HMR). */
+export const nextDevProxy = isNextProxy
+  ? createProxyMiddleware({
+      target: process.env.NEXT_DEV_PROXY_TARGET || 'http://127.0.0.1:3001',
+      ws: true,
+      changeOrigin: true,
+    })
+  : null;
 
-app.get('/docs', (req, res) => {
-  res.json({
-    message: 'Use o frontend Next.js para documentação completa.',
-    frontendDocsPath: '/docs (app Next.js)',
-    apiBase: '/agendamentos',
+if (nextDevProxy) {
+  app.use(nextDevProxy);
+} else {
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'agendador-api',
+      docs: '/docs',
+      endpoints: ['/health', '/agendamentos', '/api/cron-process-jobs'],
+    });
   });
-});
+
+  app.get('/docs', (req, res) => {
+    res.json({
+      message: 'Use o frontend Next.js para documentação completa.',
+      frontendDocsPath: '/docs (app Next.js)',
+      apiBase: '/agendamentos',
+    });
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error(err);

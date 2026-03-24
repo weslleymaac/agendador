@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import app from './app.js';
+import app, { nextDevProxy } from './app.js';
 import './queue.js'; // inicia o worker (apenas fora do Vercel)
 
 const port = parseInt(process.env.PORT || '3000', 10);
@@ -15,8 +15,13 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const server = app.listen(port, host, () => {
-  console.log(`API rodando em http://${host}:${port}`);
+  const hint = process.env.PROXY_NEXT_DEV ? ' (Next via proxy → use esta URL no navegador)' : '';
+  console.log(`API rodando em http://${host}:${port}${hint}`);
 });
+
+if (nextDevProxy?.upgrade) {
+  server.on('upgrade', nextDevProxy.upgrade);
+}
 
 // Encerramento limpo ao receber SIGTERM (Docker/EasyPanel); evita "npm error signal SIGTERM"
 process.on('SIGTERM', () => {
