@@ -1,9 +1,17 @@
 import { Agendamento } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+/** Base vazia = mesma origem (rewrites do Next encaminham para a API em Docker). */
+function getApiBase(): string {
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (raw === undefined) return "http://localhost:3000";
+  const b = raw.trim().replace(/\/$/, "");
+  return b;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const base = getApiBase();
+  const url = path.startsWith("http") ? path : `${base}${path}`;
+  const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",

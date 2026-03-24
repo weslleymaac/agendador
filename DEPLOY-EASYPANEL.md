@@ -1,101 +1,85 @@
 # Deploy no EasyPanel
 
-O projeto está pronto para rodar no **EasyPanel**. Resumo do que já existe e o que fazer no painel.
+O projeto está pronto para rodar no **EasyPanel** com **dois serviços**: **API** (`app`) e **painel Next.js** (`web`).
 
 ## O que já está pronto no projeto
 
-- **Dockerfile** – build da API Node.js
-- **docker-compose.easypanel.yml** – app + Redis com healthcheck
-- **Variáveis de ambiente** – PORT, REDIS_URL, APP_TIMEZONE_OFFSET (e opcional CORS_ORIGIN)
-- **Bind em 0.0.0.0** – app escuta em todas as interfaces (necessário em container)
-- **Healthcheck** – GET `/health` para o painel marcar o serviço como saudável
+- **Dockerfile** – build da API Node.js (BullMQ + Express)
+- **Dockerfile.frontend** – build do Next.js (`output: standalone`)
+- **docker-compose.easypanel.yml** – `app` + `web` + Redis + cron opcional
+- **Proxy no Next** – o navegador chama `/agendamentos` no mesmo domínio do painel; o Next encaminha para `http://app:3000` na rede Docker (sem precisar de `NEXT_PUBLIC_API_BASE_URL` externo nesse modo)
+- **Healthchecks** – API em `/health`; painel em `/login`
+- **Cron** – continua chamando `http://app:3000/api/cron-process-jobs` dentro da rede
+
+## Arquitetura (resumo)
+
+| Serviço | Função | Porta no host (padrão) |
+|---------|--------|-------------------------|
+| **web** | Interface (`/`, `/login`, `/docs`) e reverse proxy de `/agendamentos` → API | **3000** (use este no domínio público) |
+| **app** | API REST, worker, cron HTTP | só rede interna (`expose: 3000`); opcional publicar `3002:3000` |
+| **redis** | Fila BullMQ | interno |
+| **cron** | Reforço opcional ao worker | interno |
 
 ## Passo a passo no EasyPanel
 
-1. **Acesse o EasyPanel** no seu servidor (ex.: `https://painel.seudominio.com`).
+1. **Crie um app Docker Compose** e use o arquivo **`docker-compose.easypanel.yml`** (Git ou colando o conteúdo).
 
-2. **Criar novo Compose / Stack**
-   - Em **Apps** (ou **Compose**), crie um novo **Docker Compose**.
-   - Nome sugerido: `agendador`.
+2. **Domínio e porta (importante)**  
+   - Associe o domínio público ao serviço **`web`**, porta **3000**.  
+   - É assim que você acessa o **login**: `https://seu-dominio.com/login`.  
+   - O serviço **`app`** não precisa de domínio se você só usar o painel e integrações pela mesma URL (`https://seu-dominio.com/agendamentos`).
 
-3. **Usar o compose do projeto**
-   - Opção A: **Import from GitHub** – conecte o repositório e escolha o arquivo **`docker-compose.easypanel.yml`** como compose file (se o EasyPanel permitir escolher o arquivo).
-   - Opção B: **Colar o conteúdo** – copie todo o conteúdo de `docker-compose.easypanel.yml` e cole no editor do EasyPanel.
+3. **Credenciais do painel**  
+   No serviço **`web`**, defina (ou use os padrões do compose):
 
-4. **Variáveis de ambiente (opcional)**
-   - No serviço **app**, você pode sobrescrever ou adicionar:
-     - `CORS_ORIGIN` = `https://seu-dominio.com` (se o front chamar a API de outro domínio)
-     - Mantenha `REDIS_URL=redis://redis:6379` (já está no compose).
+   - `LOGIN_USERNAME`
+   - `LOGIN_PASSWORD`  
 
-5. **Domínio e porta**
-   - Atribua um **domínio** ao serviço **app** (ex.: `agendador.seudominio.com`) ou use o IP + porta **3000**.
-   - Habilite **HTTPS** no EasyPanel se disponível (certificado automático).
+   Em produção, use valores fortes e, se o painel permitir, armazene como **secret**.
 
-6. **Deploy**
-   - Clique em **Deploy** / **Start**. O EasyPanel vai:
-     - Subir o Redis primeiro (com healthcheck).
-     - Depois buildar e subir o container da API (com healthcheck em `/health`).
+4. **Cron com segredo (recomendado)**  
+   Defina `CRON_SECRET` no compose / variáveis do projeto. O endpoint da API só aceita o header `x-cron-secret` (ou query `secret`) igual a esse valor.
 
-## O que NÃO falta
+5. **Deploy**  
+   Faça build/redeploy de **todos** os serviços após mudanças no `Dockerfile`, `Dockerfile.frontend` ou no compose.
 
-- Não é necessário criar Redis manualmente: o compose já inclui o serviço `redis`.
-- Não precisa de `.env` no servidor: as variáveis usadas em produção estão no `docker-compose.easypanel.yml` (e você pode ajustar no painel).
-- O worker do BullMQ roda no mesmo processo da API, então não há serviço extra para agendar.
-- **Cron não é obrigatório:** o worker já processa os jobs no momento exato (o BullMQ dispara quando o delay expira). Se quiser um reforço, o compose pode incluir um serviço `cron` que chama `/api/cron-process-jobs` a cada minuto (veja abaixo).
+## API só para integrações (opcional)
 
-## Cron opcional (reforço a cada minuto)
+Se você quiser uma URL **direta** só para a API (ex.: n8n em outro host), descomente no compose, no serviço **`app`**:
 
-O worker sozinho já executa os jobs no horário certo. Se você quiser um **cron a cada minuto** como fallback (por exemplo, para promover jobs atrasados), o `docker-compose.easypanel.yml` pode incluir um serviço `cron` que chama o endpoint `/api/cron-process-jobs`.
+```yaml
+ports:
+  - "3002:3000"
+```
 
-Nesse caso, defina a variável **`CRON_SECRET`** (valor secreto qualquer) no compose e no painel. O endpoint só processa a requisição se o header `x-cron-secret` ou o query `secret` bater com `CRON_SECRET`; assim apenas o serviço cron interno consegue chamar o endpoint. Se `CRON_SECRET` não estiver definido, o endpoint continua aberto (comportamento compatível com a Vercel).
+Atribua outro domínio ou porta no EasyPanel para esse mapeamento. Nesse caso configure **`CORS_ORIGIN`** na **`app`** com a origem do front ou da ferramenta que chama a API.
+
+## Rebuild do front após mudar a URL da API interna
+
+O destino do rewrite (`API_INTERNAL_URL`, padrão `http://app:3000`) é definido no **build** da imagem `web`. Se você renomear o serviço da API no compose, ajuste o `build.args` do **`web`** e faça **rebuild** da imagem do front.
 
 ## Resumo
 
-| Item                    | Status        |
-|-------------------------|---------------|
-| Dockerfile              | Pronto        |
-| Docker Compose (app+redis) | Pronto    |
-| Listen 0.0.0.0          | Pronto        |
-| Healthcheck             | Pronto        |
-| Variáveis no compose    | Pronto        |
-| CORS (opcional)         | Definir no painel se precisar |
-
-Depois do deploy, acesse `https://seu-dominio.com` para a interface e `https://seu-dominio.com/agendamentos` para a API.
+| Item | Status |
+|------|--------|
+| Dockerfile (API) | Pronto |
+| Dockerfile.frontend | Pronto |
+| Compose (app + web + redis + cron) | Pronto |
+| Login em produção | `https://seu-dominio` → serviço **web** → `/login` |
+| Chamadas REST pelo mesmo domínio | `POST/GET https://seu-dominio/agendamentos` (via rewrite) |
 
 ---
 
 ## "Service is not reachable" no navegador
 
-Se a API sobe nos logs (`API rodando em http://0.0.0.0:3000`) mas ao abrir a página aparece **"Service is not reachable"**:
-
-1. **Vincule o domínio ao serviço correto**  
-   No EasyPanel, em **Domains** (ou configuração de domínio do app), confira que o domínio (ex.: `n8n-agenda.pkrrrs.easypanel.host`) está vinculado ao serviço **`app`** — e **não** ao cron, ao redis ou a outro template (ex.: n8n). O tráfego HTTP deve ir para o serviço **app**.
-
-2. **Porta 3000**  
-   Para o serviço **app**, a porta deve ser **3000**. No painel, onde você configura o domínio ou o proxy, defina **porta do container / application port = 3000**.
-
-3. **Aguarde o status Healthy**  
-   Após o deploy, o serviço **app** pode levar até ~1 minuto para ficar **Healthy** (o healthcheck espera até 45s para o app subir). Enquanto estiver "Unhealthy", o EasyPanel pode não encaminhar tráfego. Espere o ícone verde/Healthy antes de acessar a URL.
-
-4. **Confira os logs do container `app`**  
-   Se continuar inacessível, abra os **logs** do container **agendador-app** no EasyPanel. Erros comuns:
-   - **Redis connection refused** — o Redis ainda não estava pronto; o compose já usa `depends_on` com healthcheck, então um redeploy costuma resolver.
-   - **EADDRINUSE** ou erro de porta — improvável com a configuração atual.
-   - Qualquer stack trace — envie o trecho para depuração.
-
-5. **Este projeto é o agendador, não n8n**  
-   Se você criou o app a partir de um template "n8n", crie um **novo** app do tipo **Docker Compose** e use apenas o arquivo `docker-compose.easypanel.yml` deste repositório (agendador). O domínio deve apontar para esse compose e para o serviço **app**.
-
-6. **Redeploy após alterações**  
-   Se alterou o `Dockerfile` ou o `docker-compose.easypanel.yml`, faça **rebuild e redeploy** no EasyPanel para aplicar as mudanças.
+1. **Domínio no serviço certo** – para ver o painel e o login, o domínio deve apontar para **`web`**, porta **3000**, não só para `app`.
+2. **Aguarde Healthy** – o `web` depende do healthcheck da `app`; o primeiro deploy pode levar ~1–2 minutos até os dois ficarem verdes.
+3. **Logs** – `agendador-web` e `agendador-app` no EasyPanel.
 
 ---
 
 ## Erro 502 (Bad Gateway)
 
-Se o navegador ou a API retornam **502**:
-
-1. **Veja os logs do container `app`** no EasyPanel. O projeto registra `uncaughtException` e `unhandledRejection` no console; a mensagem que aparecer ali costuma ser a causa (ex.: Redis inacessível, arquivo não encontrado, erro de código).
-2. **Redis:** confira se o serviço **redis** está **Healthy**. Se o app subir antes do Redis, as primeiras requisições podem falhar; um **Redeploy** do Compose costuma resolver.
-3. **Timeout do proxy:** em alguns painéis o proxy encerra a requisição após poucos segundos. Se a primeira resposta do app demorar (ex.: muitos jobs na listagem), pode dar 502. Se os logs do app mostrarem resposta 200 mas o browser 502, aumente o timeout no EasyPanel se houver opção.
-4. Depois de corrigir a causa, faça **Redeploy** do Compose.
+1. Logs do container **`app`** (Redis, crash na API).  
+2. Redis **Healthy**.  
+3. Se só o `web` falhar, confira build do Next e healthcheck em `/login`.

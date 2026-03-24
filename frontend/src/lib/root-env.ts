@@ -50,9 +50,8 @@ export function getLoginCredentials(): { username: string; password: string } {
 
 export function getPublicApiBaseUrl(): string {
   const file = parseEnvFile(getRootEnvPath());
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    file.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:3000"
-  ).trim();
+  if (process.env.NEXT_PUBLIC_API_BASE_URL !== undefined) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL.trim();
+  }
+  return (file.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000").trim();
 }

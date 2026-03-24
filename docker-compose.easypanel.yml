@@ -2,9 +2,12 @@ services:
   app:
     build: .
     container_name: agendador-app
-    # No EasyPanel: atribua o domínio a este serviço (app) e defina a porta como 3000
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
+    # Opcional: exponha a API no host (ex.: segunda URL só para integrações / n8n).
+    # O painel e o tráfego do navegador podem usar só o serviço `web` (mesma origem).
+    # ports:
+    #   - "3002:3000"
     environment:
       PORT: 3000
       REDIS_URL: redis://redis:6379
@@ -19,6 +22,32 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ""
+        API_INTERNAL_URL: http://app:3000
+    container_name: agendador-web
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      LOGIN_USERNAME: ${LOGIN_USERNAME:-Admin}
+      LOGIN_PASSWORD: ${LOGIN_PASSWORD:-admin}
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "--max-time", "5", "http://127.0.0.1:3000/login"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
     restart: unless-stopped
 
   cron:

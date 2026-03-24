@@ -4,6 +4,7 @@ import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import agendamentosRouter from './routes/agendamentos.js';
 import { runCronProcessJobs } from './lib/cronProcessJobs.js';
+import { renderDocsHtml } from './lib/docsHtml.js';
 
 const app = express();
 const isNextProxy = process.env.PROXY_NEXT_DEV === '1' || process.env.PROXY_NEXT_DEV === 'true';
@@ -72,11 +73,8 @@ if (nextDevProxy) {
   });
 
   app.get('/docs', (req, res) => {
-    res.json({
-      message: 'Use o frontend Next.js para documentação completa.',
-      frontendDocsPath: '/docs (app Next.js)',
-      apiBase: '/agendamentos',
-    });
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(renderDocsHtml(req));
   });
 }
 
